@@ -8,8 +8,10 @@ class IndexController {
     //react vue ...html字符串 diff
     // const data = await ctx.render("index", {
     //   data: "服务端数据",
-    // });
-    ctx.body = 'index';
+      // });
+      console.log(ctx);
+      
+    ctx.body = '我是首页';
   }
 }
 export default IndexController;

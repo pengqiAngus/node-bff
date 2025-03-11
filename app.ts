@@ -3,41 +3,32 @@ addAliases({
   "@root": __dirname,
   "@interfaces": `${__dirname}/interface`,
   "@config": `${__dirname}/config`,
-  "@middlewares": `${__dirname}/middlewares`,
 });
 
 import Koa from "koa";
+import config from "@config/index";
 import render from "koa-swig";
 import serve from "koa-static";
 import co from "co";
 import { createContainer, Lifetime } from "awilix";
 import { loadControllers, scopePerRequest } from "awilix-koa";
-
-import { configure, getLogger } from "log4js";
-
-import ErrorHandler from "@middlewares/ErrorHandler";
 import { historyApiFallback } from "koa2-connect-history-api-fallback";
-
-import config from "@config/index";
-
-configure({
-  appenders: { cheese: { type: "file", filename: `${__dirname}/logs/yd.log` } },
-  categories: { default: { appenders: ["cheese"], level: "error" } },
-});
-const logger = getLogger("cheese");
-
-const { port, viewDir, staticDir, memoryFlag } = config;
+import path from "path";
+import glob from "glob";
 
 const app = new Koa();
-// app.context.render = co.wrap(
-//   render({
-//     root: viewDir,
-//     autoescape: true,
-//     cache: <"memory" | false>memoryFlag,
-//     writeBody: false,
-//     ext: "html",
-//   })
-// );
+const { port, viewDir, memoryFlag, staticDir } = config;
+
+app.context.render = co.wrap(
+  render({
+    root: viewDir,
+    autoescape: true,
+    cache: <"memory" | false>memoryFlag,
+    writeBody: false,
+    ext: "html",
+  })
+);
+
 app.use(serve(staticDir));
 
 const container = createContainer();
@@ -50,15 +41,31 @@ container.loadModules([`${__dirname}/services/*.ts`], {
 
 app.use(scopePerRequest(container));
 
-console.log(`${__dirname}/routers/`);
+// 
+const fileExt = process.env.NODE_ENV === "development" ? ".js" : ".js";
 
-app.use(loadControllers(`${__dirname}/routers/*.ts`));
+const loadDynamicControllers = async () => {
+  // 获取所有控制器文件的路径
+  const files = glob.sync(path.join(__dirname, "/routers/*.js"));
 
-ErrorHandler.error(app, logger);
+  // 动态导入所有控制器模块
+  const controllers = await Promise.all(files.map((file) => import(file)));
 
-// 不是api都定向到根路由，让前端接管路由
-app.use(historyApiFallback({ index: "/", whiteList: ["/api"] }));
+  // 返回控制器模块
+  return controllers.map((controller) => controller.default || controller);
+};
+
+loadDynamicControllers()
+  .then((controllers:any) => {
+    app.use(loadControllers(controllers));
+  })
+  .catch((err) => {
+    console.error("Failed to load controllers:", err);
+  });
+
+// app.use(loadControllers(`${__dirname}/routers/*.${fileExt}`));
 app.listen(port, () => {
   console.log("京程一灯Server BFF启动成功");
 });
+
 export default app;

@@ -8,10 +8,10 @@
     "module": "NodeNext",
     "moduleResolution": "nodenext",
     "allowSyntheticDefaultImports": true,
-    "typeRoots": ["typings","./node_modules"],
+    "typeRoots": ["typings"],
     "baseUrl": "./",
     "paths": {
-      "@interfaces/*": ["interface/*"],
+      "@interfaces/*": ["interfaces/*"],
       "@config/*": ["config/*"],
       "@middlewares/*": ["middlewares/*"]
     }
